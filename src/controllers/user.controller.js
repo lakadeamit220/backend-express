@@ -179,9 +179,9 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   try {
-    console.log("Request headers:", req.headers); // Debug headers
-    console.log("Request cookies:", req.cookies); // Debug cookies
-    console.log("Request body:", req.body); // Debug body
+    //console.log("Request headers:", req.headers); // Debug headers
+    //console.log("Request cookies:", req.cookies); // Debug cookies
+    //console.log("Request body:", req.body); // Debug body
 
     // Get token from cookies or body
     const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
