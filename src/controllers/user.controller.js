@@ -7,7 +7,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js"
 const generateAccessAndRefereshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
-
+    console.log("User: ", user)
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
 
@@ -15,6 +15,7 @@ const generateAccessAndRefereshTokens = async (userId) => {
     await user.save({ validateBeforeSave: false })
 
     return { accessToken, refreshToken }
+
   } catch (error) {
     throw new ApiError(500, "Something went wrong while generating refresh and access token.")
   }
@@ -102,14 +103,10 @@ const loginUser = asyncHandler(async (req, res) => {
   const { email, username, password } = req.body
   console.log(email);
 
-  if (!username && !email) {
+
+  if (!(username || email)) {
     throw new ApiError(400, "username or email is required")
   }
-
-  // if (!(username || email)) {
-  //     throw new ApiError(400, "username or email is required")
-
-  // }
 
   const user = await User.findOne({
     $or: [{ username }, { email }]
@@ -144,14 +141,35 @@ const loginUser = asyncHandler(async (req, res) => {
         {
           user: loggedInUser, accessToken, refreshToken
         },
-        "User logged In Successfully"
+        "User Logged In Successfully"
       )
     )
 
 })
 
 const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $unset: {
+        refreshToken: 1 // this removes the field from document
+      }
+    },
+    {
+      new: true
+    }
+  )
 
+  const options = {
+    httpOnly: true,
+    secure: true
+  }
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User Logged Out"))
 })
 
 export { registerUser, loginUser, logoutUser }
