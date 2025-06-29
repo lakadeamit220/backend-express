@@ -2,7 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { User } from "../models/user.model.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 import jwt from "jsonwebtoken";
 
 const generateAccessAndRefereshTokens = async (userId) => {
@@ -90,7 +90,7 @@ const registerUser = asyncHandler(async (req, res) => {
   return res.status(201).json(
     new ApiResponse(200, createdUser, "User Registered Successfully")
   )
-})
+});
 
 const loginUser = asyncHandler(async (req, res) => {
 
@@ -146,12 +146,12 @@ const loginUser = asyncHandler(async (req, res) => {
       )
     )
 
-})
+});
 
 const logoutUser = asyncHandler(async (req, res) => {
-  console.log("User in request:", req.user); // Debug log
+  //console.log("User in request:", req.user); // Debug log
   if (!req.user) {
-    console.log("No user found in request"); // Debug log
+    // console.log("No user found in request"); // Debug log
     throw new ApiError(401, "User not authenticated");
   }
 
@@ -175,7 +175,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     .clearCookie("accessToken", options)
     .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "User Logged Out"))
-})
+});
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   try {
@@ -250,7 +250,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Password changed successfully"))
-})
+});
 
 const getCurrentUser = asyncHandler(async (req, res) => {
   return res
@@ -260,7 +260,7 @@ const getCurrentUser = asyncHandler(async (req, res) => {
       req.user,
       "User fetched successfully"
     ))
-})
+});
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body
@@ -286,8 +286,46 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Account details updated successfully"))
 });
 
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is missing");
+  }
+
+  // Get the user's current avatar URL
+  const user = await User.findById(req.user?._id);
+  const oldAvatarUrl = user?.avatar;
+
+  // Delete the old avatar from Cloudinary if it exists
+  if (oldAvatarUrl) {
+    await deleteFromCloudinary(oldAvatarUrl);
+  }
+
+  // Upload new avatar
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+  if (!avatar?.url) {
+    throw new ApiError(400, "Error while uploading avatar");
+  }
+
+  // Update user with new avatar URL
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: avatar.url,
+      },
+    },
+    { new: true }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedUser, "Avatar updated successfully"));
+});
 
 export {
   registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser,
-  updateAccountDetails
+  updateAccountDetails, updateUserAvatar
 }
