@@ -325,7 +325,49 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, updatedUser, "Avatar updated successfully"));
 });
 
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
+
+  if (!coverImageLocalPath) {
+    throw new ApiError(400, "Cover image file is missing");
+  }
+
+  // Get current user to check for existing cover image
+  const user = await User.findById(req.user?._id);
+  const oldCoverImageUrl = user?.coverImage;
+
+  // Delete old cover image if exists
+  if (oldCoverImageUrl) {
+    await deleteFromCloudinary(oldCoverImageUrl);
+  }
+
+  // Upload new cover image
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+  if (!coverImage?.url) {
+    throw new ApiError(400, "Error while uploading cover image");
+  }
+
+  // Update user
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: coverImage.url
+      }
+    },
+    { new: true }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, updatedUser, "Cover image updated successfully")
+    );
+});
+
 export {
   registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser,
-  updateAccountDetails, updateUserAvatar
+  updateAccountDetails, updateUserAvatar, updateUserCoverImage
 }
